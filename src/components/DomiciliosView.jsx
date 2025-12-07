@@ -1,0 +1,191 @@
+import React, { useState } from 'react';
+
+const DomiciliosView = ({ onLogout, onAddDeliveryOrder, products = [] }) => {
+  const [customerName, setCustomerName] = useState('');
+  const [customerPhone, setCustomerPhone] = useState('');
+  const [address, setAddress] = useState('');
+  const [cart, setCart] = useState([]);
+  const [orderSent, setOrderSent] = useState(false);
+
+  const addToCart = (product) => {
+    setCart([...cart, product]);
+  };
+
+  const removeFromCart = (index) => {
+    setCart(cart.filter((_, i) => i !== index));
+  };
+
+  const total = cart.reduce((sum, item) => sum + item.price, 0);
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    
+    const deliveryOrder = {
+       id: `DOM-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      customerName,
+      customerPhone,
+      address,
+      items: cart,
+      total: total,
+      status: 'pendiente',
+      timestamp: new Date().toLocaleTimeString(),
+      channel: 'whatsapp',
+      isDelivery: true
+    };
+
+    if (onAddDeliveryOrder) {
+      onAddDeliveryOrder(deliveryOrder);
+    }
+
+    setOrderSent(true);
+    setTimeout(() => {
+      setCustomerName('');
+      setCustomerPhone('');
+      setAddress('');
+      setCart([]);
+      setOrderSent(false);
+    }, 3000);
+  };
+
+  return (
+    <div className="min-h-screen bg-linear-to-br from-green-50 to-blue-50 p-6">
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-3xl font-bold text-gray-900">Central de Domicilios</h1>
+        <button onClick={onLogout} className="text-red-500 hover:text-red-700 font-semibold">
+          Cerrar Sesión
+        </button>
+      </div>
+
+      <div className="max-w-5xl mx-auto">
+        <div className="mb-6 p-4 bg-blue-50 border-l-4 border-blue-500 rounded">
+          <h3 className="font-bold text-blue-900 mb-2">📱 Registro de Pedidos por WhatsApp</h3>
+          <p className="text-sm text-blue-700">
+            Ingresa los pedidos recibidos por WhatsApp. El sistema sincronizará automáticamente con POS y Cocina.
+          </p>
+        </div>
+
+        <form onSubmit={handleSubmit}>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="bg-white rounded-lg shadow-xl p-6">
+              <h2 className="text-xl font-bold mb-4">Información del Cliente</h2>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-2">
+                    Nombre del Cliente *
+                  </label>
+                  <input
+                    type="text"
+                    value={customerName}
+                    onChange={(e) => setCustomerName(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                    placeholder="Ej: Juan Pérez"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-2">
+                    Teléfono de Contacto *
+                  </label>
+                  <input
+                    type="tel"
+                    value={customerPhone}
+                    onChange={(e) => setCustomerPhone(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                    placeholder="Ej: 3001234567"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-2">
+                    Dirección de Entrega *
+                  </label>
+                  <input
+                    type="text"
+                    value={address}
+                    onChange={(e) => setAddress(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                    placeholder="Ej: Calle 10 #5-32, Barrio Centro"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="mt-6">
+                <h3 className="font-bold mb-3">Menú Disponible</h3>
+                <div className="max-h-64 overflow-y-auto space-y-2">
+                  {products.map((product) => (
+                    <div key={product.id} className="flex justify-between items-center p-2 border rounded hover:bg-gray-50">
+                      <div>
+                        <p className="font-medium text-sm">{product.name}</p>
+                        <p className="text-gray-600 text-xs">${product.price.toLocaleString()}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => addToCart(product)}
+                        className="bg-green-500 text-white px-3 py-1 text-xs rounded hover:bg-green-600"
+                      >
+                        + Agregar
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-lg shadow-xl p-6">
+              <h2 className="text-xl font-bold mb-4">Detalle del Pedido</h2>
+              {cart.length === 0 ? (
+                <p className="text-gray-500 text-center py-8">No hay productos en el pedido</p>
+              ) : (
+                <div>
+                  <ul className="space-y-2 mb-4 max-h-72 overflow-y-auto">
+                    {cart.map((item, index) => (
+                      <li key={index} className="flex justify-between items-center p-2 bg-gray-50 rounded">
+                        <div>
+                          <span className="font-medium">{item.name}</span>
+                          <p className="text-sm text-gray-600">${item.price.toLocaleString()}</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => removeFromCart(index)}
+                          className="text-red-500 hover:text-red-700 text-sm"
+                        >
+                          ✕
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                  <div className="border-t pt-4">
+                    <div className="flex justify-between text-xl font-bold mb-4">
+                      <span>Total:</span>
+                      <span className="text-green-600">${total.toLocaleString()}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={cart.length === 0 || !customerName || !customerPhone || !address}
+                className={'w-full font-bold py-3 px-4 rounded-lg transition ' + (cart.length === 0 || !customerName || !customerPhone || !address ? 'bg-gray-400 cursor-not-allowed text-gray-200' : 'bg-green-600 hover:bg-green-700 text-white')}
+              >
+                📦 Registrar Pedido a Domicilio
+              </button>
+            </div>
+          </div>
+        </form>
+
+        {orderSent && (
+          <div className="mt-6 p-4 bg-green-100 border border-green-400 text-green-700 rounded-lg">
+            <p className="font-bold"> Pedido registrado exitosamente</p>
+            <p className="text-sm">El pedido se ha sincronizado con el sistema POS y la cocina.</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default DomiciliosView;
