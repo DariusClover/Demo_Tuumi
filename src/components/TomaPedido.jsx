@@ -12,11 +12,13 @@ const TomaPedido = ({ onLogout, onAddOrder, products = [] }) => {
   const total = cart.reduce((sum, item) => sum + item.price, 0);
 
   const handleSendOrder = () => {
+    const orderId = `${Date.now()}-${Math.random()}`;
+    const orderTime = new Date().toLocaleTimeString();
     const newOrder = {
-      id: `${Date.now()}-${Math.random()}`,
+      id: orderId,
       items: cart,
       total: total,
-      timestamp: new Date().toLocaleTimeString()
+      timestamp: orderTime
     };
     if (onAddOrder) {
       onAddOrder(newOrder);

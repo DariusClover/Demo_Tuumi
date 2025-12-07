@@ -20,8 +20,9 @@ const DomiciliosView = ({ onLogout, onAddDeliveryOrder, products = [] }) => {
   const handleSubmit = (e) => {
     e.preventDefault();
     
+    const orderId = Date.now();
     const deliveryOrder = {
-       id: `DOM-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      id: orderId,
       customerName,
       customerPhone,
       address,
