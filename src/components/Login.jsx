@@ -1,85 +1,105 @@
 import React, { useState } from 'react';
 
-const Login = ({ onLogin }) => {
+const Login = ({ onLogin, employees }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    // Logic:
-    // mesero / 123 -> TomaPedido
-    // admin / secure -> SecurityDashboard
-    // cocina / pass -> KDSView
-    // cajero / caja123 -> CajaView
-    // domicilios / dom123 -> DomiciliosView
-    
-    if (username === 'mesero' && password === '123') {
-      onLogin('mesero');
-    } else if (username === 'admin' && password === 'secure') {
-      onLogin('admin');
-    } else if (username === 'cocina' && password === 'pass') {
-      onLogin('cocina');
-    } else if (username === 'cajero' && password === 'caja123') {
-      onLogin('cajero');
-    } else if (username === 'domicilios' && password === 'dom123') {
-      onLogin('domicilios');
-    } else {
-      setError('Acceso No Autorizado. Violación de Confidencialidad Evitada.');
-    }
+    setError('');
+    setIsLoading(true);
+
+    // Simular delay de autenticación
+    setTimeout(() => {
+      // Verificar credenciales admin
+      if (username === 'admin' && password === 'admin123') {
+        onLogin('admin', { 
+          id: 'admin', 
+          name: 'Administrador', 
+          role: 'admin', 
+          username: 'admin' 
+        });
+        setIsLoading(false);
+        return;
+      }
+
+      // Verificar empleados registrados
+      const employee = employees.find(
+        emp => emp.username === username && emp.password === password
+      );
+
+      if (employee) {
+        onLogin(employee.role, employee);
+      } else {
+        setError(' Usuario o contraseña incorrectos');
+      }
+      setIsLoading(false);
+    }, 500);
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-100">
-      <div className="p-8 bg-white rounded shadow-md w-96">
-        <h2 className="mb-6 text-2xl font-bold text-center text-gray-800">Yuumi POS Login</h2>
-        {error && <div className="p-2 mb-4 text-sm text-red-700 bg-red-100 rounded">{error}</div>}
+    <div className="flex items-center justify-center min-h-screen bg-linear-to-br from-blue-50 to-purple-50">
+      <div className="p-8 bg-white rounded-lg shadow-2xl w-96">
+        <div className="text-center mb-6">
+          <h1 className="text-3xl font-bold text-gray-800 mb-2">🍔 Yuumi POS</h1>
+          <p className="text-sm text-gray-600">Sistema de Punto de Venta</p>
+        </div>
+
+        {error && (
+          <div className="p-3 mb-4 text-sm text-red-700 bg-red-100 border border-red-300 rounded-lg animate-shake">
+            {error}
+          </div>
+        )}
+
         <form onSubmit={handleSubmit}>
           <div className="mb-4">
-            <label className="block mb-2 text-sm font-bold text-gray-700">Usuario</label>
+            <label className="block mb-2 text-sm font-bold text-gray-700">
+              👤 Usuario
+            </label>
             <input
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              className="w-full px-3 py-2 border rounded shadow appearance-none focus:outline-none focus:shadow-outline"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Ingresa tu usuario"
+              required
+              disabled={isLoading}
             />
           </div>
           <div className="mb-6">
-            <label className="block mb-2 text-sm font-bold text-gray-700">Contraseña</label>
+            <label className="block mb-2 text-sm font-bold text-gray-700">
+              🔒 Contraseña
+            </label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-3 py-2 border rounded shadow appearance-none focus:outline-none focus:shadow-outline"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="••••••••"
+              required
+              disabled={isLoading}
             />
           </div>
           <button
             type="submit"
-            className="w-full px-4 py-2 font-bold text-white bg-blue-500 rounded hover:bg-blue-700 focus:outline-none focus:shadow-outline"
+            disabled={isLoading}
+            className={`w-full px-4 py-3 font-bold text-white rounded-lg transition ${
+              isLoading 
+                ? 'bg-gray-400 cursor-not-allowed' 
+                : 'bg-blue-600 hover:bg-blue-700'
+            }`}
           >
-            Ingresar
+            {isLoading ? ' Verificando...' : ' Ingresar'}
           </button>
         </form>
 
-        <div className="mt-6 pt-6 border-t">
-          <p className="text-xs text-gray-600 mb-3 text-center font-semibold">Acceso Rápido (Solo para Demo)</p>
-          <div className="grid grid-cols-2 gap-2">
-            <button onClick={() => onLogin('mesero')} className="text-xs bg-green-100 hover:bg-green-200 text-green-800 py-2 px-3 rounded">
-              👨‍🍳 Mesero
-            </button>
-            <button onClick={() => onLogin('cocina')} className="text-xs bg-orange-100 hover:bg-orange-200 text-orange-800 py-2 px-3 rounded">
-              🍳 Cocina
-            </button>
-            <button onClick={() => onLogin('cajero')} className="text-xs bg-blue-100 hover:bg-blue-200 text-blue-800 py-2 px-3 rounded">
-              💰 Cajero
-            </button>
-            <button onClick={() => onLogin('domicilios')} className="text-xs bg-purple-100 hover:bg-purple-200 text-purple-800 py-2 px-3 rounded">
-              🏍️ Domicilios
-            </button>
-            <button onClick={() => onLogin('admin')} className="col-span-2 text-xs bg-gray-800 hover:bg-gray-900 text-white py-2 px-3 rounded">
-              👑 Administrador
-            </button>
-          </div>
+        <div className="mt-6 pt-6 border-t text-center">
+         
+          <p className="text-xs text-gray-500 mt-1">
+            
+          </p>
         </div>
       </div>
     </div>

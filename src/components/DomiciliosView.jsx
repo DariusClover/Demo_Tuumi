@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 
-const DomiciliosView = ({ onLogout, onAddDeliveryOrder, products = [] }) => {
+const DomiciliosView = ({ onLogout, onAddDeliveryOrder, products = [], currentUser }) => {
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [address, setAddress] = useState('');
   const [cart, setCart] = useState([]);
   const [orderSent, setOrderSent] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const addToCart = (product) => {
     setCart([...cart, product]);
@@ -20,6 +21,10 @@ const DomiciliosView = ({ onLogout, onAddDeliveryOrder, products = [] }) => {
   const handleSubmit = (e) => {
     e.preventDefault();
     
+    if (isSubmitting) return;
+    
+    setIsSubmitting(true);
+    
     const orderId = Date.now();
     const deliveryOrder = {
       id: orderId,
@@ -31,7 +36,8 @@ const DomiciliosView = ({ onLogout, onAddDeliveryOrder, products = [] }) => {
       status: 'pendiente',
       timestamp: new Date().toLocaleTimeString(),
       channel: 'whatsapp',
-      isDelivery: true
+      isDelivery: true,
+      waiter: currentUser?.name || 'Domicilios'
     };
 
     if (onAddDeliveryOrder) {
@@ -45,15 +51,25 @@ const DomiciliosView = ({ onLogout, onAddDeliveryOrder, products = [] }) => {
       setAddress('');
       setCart([]);
       setOrderSent(false);
+      setIsSubmitting(false);
     }, 3000);
   };
 
   return (
     <div className="min-h-screen bg-linear-to-br from-green-50 to-blue-50 p-6">
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Central de Domicilios</h1>
-        <button onClick={onLogout} className="text-red-500 hover:text-red-700 font-semibold">
-          Cerrar Sesión
+      {/* Header con info de usuario */}
+      <div className="flex justify-between items-center mb-8 bg-white p-4 rounded-lg shadow-xl">
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 rounded-full bg-purple-500 flex items-center justify-center text-white font-bold text-xl">
+            {currentUser?.avatar || currentUser?.name?.charAt(0) || 'D'}
+          </div>
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900"> Central de Domicilios</h1>
+            <p className="text-sm text-gray-600">Operador: {currentUser?.name || 'Domicilios'}</p>
+          </div>
+        </div>
+        <button onClick={onLogout} className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 font-semibold">
+           Cerrar Sesión
         </button>
       </div>
 
@@ -169,10 +185,10 @@ const DomiciliosView = ({ onLogout, onAddDeliveryOrder, products = [] }) => {
 
               <button
                 type="submit"
-                disabled={cart.length === 0 || !customerName || !customerPhone || !address}
-                className={'w-full font-bold py-3 px-4 rounded-lg transition ' + (cart.length === 0 || !customerName || !customerPhone || !address ? 'bg-gray-400 cursor-not-allowed text-gray-200' : 'bg-green-600 hover:bg-green-700 text-white')}
+                disabled={cart.length === 0 || !customerName || !customerPhone || !address || isSubmitting}
+                className={'w-full font-bold py-3 px-4 rounded-lg transition ' + (cart.length === 0 || !customerName || !customerPhone || !address || isSubmitting ? 'bg-gray-400 cursor-not-allowed text-gray-200' : 'bg-green-600 hover:bg-green-700 text-white')}
               >
-                📦 Registrar Pedido a Domicilio
+                {isSubmitting ? ' Enviando...' : ' Registrar Pedido a Domicilio'}
               </button>
             </div>
           </div>
