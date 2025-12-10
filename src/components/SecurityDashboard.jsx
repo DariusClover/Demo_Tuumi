@@ -1,101 +1,153 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { useOrders } from '../hooks/useOrders';
 
-const SecurityDashboard = ({ onLogout,  onGoToProducts, onGoToEmployees, completedSales = [], currentUser }) => {
-  const totalSales = completedSales.reduce((sum, sale) => sum + sale.total, 0);
-  const averageSale = completedSales.length > 0 ? totalSales / completedSales.length : 0;
-  
+const SecurityDashboard = ({ onLogout, onNavigate, currentUser }) => {
+  const { getSalesMetrics } = useOrders();
+  const metrics = getSalesMetrics();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const menuItems = [
+    { 
+      id: 'admin-categories', 
+      label: 'Categorías', 
+      icon: '',
+      gradient: 'from-purple-600 to-pink-600'
+    },
+    { 
+      id: 'admin-products', 
+      label: 'Productos', 
+      icon: '',
+      gradient: 'from-blue-600 to-cyan-600'
+    },
+    { 
+      id: 'admin-employees', 
+      label: 'Empleados', 
+      icon: '',
+      gradient: 'from-green-600 to-teal-600'
+    }
+  ];
+
   return (
-    <div className="min-h-screen bg-linear-to-br from-gray-50 to-blue-50 p-6">
-      {/* Header con info de usuario */}
-      <div className="flex justify-between items-center mb-8 bg-white p-4 rounded-lg shadow-xl">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-full bg-red-500 flex items-center justify-center text-white font-bold text-xl">
-            {currentUser?.avatar || currentUser?.name?.charAt(0) || 'A'}
-          </div>
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900"> Panel de Administración</h1>
-            <p className="text-sm text-gray-600">Administrador: {currentUser?.name || 'Admin'}</p>
-          </div>
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 flex">
+      {/* Sidebar Desktop */}
+      <aside className="hidden lg:flex lg:flex-col lg:w-64 bg-white shadow-xl">
+        <div className="p-6 border-b">
+          <h2 className="text-xl font-bold text-gray-800"> Gestión</h2>
         </div>
-        <button onClick={onLogout} className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 font-semibold">
-           Cerrar Sesión
-        </button>
-      </div>
+        <nav className="flex-1 p-4">
+          <ul className="space-y-2">
+            {menuItems.map((item) => (
+              <li key={item.id}>
+                <button
+                  onClick={() => onNavigate(item.id)}
+                  className={`w-full text-left px-4 py-3 rounded-lg font-semibold transition transform hover:scale-105 bg-gradient-to-r ${item.gradient} text-white hover:shadow-lg`}
+                >
+                  <span className="text-xl mr-2">{item.icon}</span>
+                  {item.label}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      </aside>
 
-      {/* Botones de acceso rápido */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <button onClick={onGoToEmployees} className="bg-purple-600 text-white px-6 py-4 rounded-lg hover:bg-purple-700 font-bold shadow-lg transition transform hover:scale-105">
-           Gestionar Empleados
-        </button>
-        <button onClick={onGoToProducts} className="bg-blue-600 text-white px-6 py-4 rounded-lg hover:bg-blue-700 font-bold shadow-lg transition transform hover:scale-105">
-           Gestionar Productos
-        </button>
-       
+      {/* Sidebar Mobile */}
+      <div className={`fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden transition-opacity ${sidebarOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} onClick={() => setSidebarOpen(false)}>
       </div>
+      <aside className={`fixed top-0 left-0 h-full w-64 bg-white shadow-xl z-50 transform transition-transform lg:hidden ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+        <div className="p-6 border-b flex justify-between items-center">
+          <h2 className="text-xl font-bold text-gray-800">🎛️ Gestión</h2>
+          <button onClick={() => setSidebarOpen(false)} className="text-gray-600 hover:text-gray-900">
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        <nav className="p-4">
+          <ul className="space-y-2">
+            {menuItems.map((item) => (
+              <li key={item.id}>
+                <button
+                  onClick={() => {
+                    onNavigate(item.id);
+                    setSidebarOpen(false);
+                  }}
+                  className={`w-full text-left px-4 py-3 rounded-lg font-semibold transition bg-gradient-to-r ${item.gradient} text-white hover:shadow-lg`}
+                >
+                  <span className="text-xl mr-2">{item.icon}</span>
+                  {item.label}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      </aside>
 
-      {/* Métricas de ventas */}
-      <div className="mb-6 grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-white p-6 rounded-lg shadow-xl border-l-4 border-green-500">
-          <h3 className="text-sm font-semibold text-gray-600 mb-2"> Ventas Completadas</h3>
-          <p className="text-4xl font-bold text-gray-900">{completedSales.length}</p>
-        </div>
-        <div className="bg-white p-6 rounded-lg shadow-xl border-l-4 border-blue-500">
-          <h3 className="text-sm font-semibold text-gray-600 mb-2"> Total Vendido</h3>
-          <p className="text-3xl font-bold text-green-600">${totalSales.toLocaleString()}</p>
-        </div>
-        <div className="bg-white p-6 rounded-lg shadow-xl border-l-4 border-yellow-500">
-          <h3 className="text-sm font-semibold text-gray-600 mb-2"> Ticket Promedio</h3>
-          <p className="text-3xl font-bold text-blue-600">${Math.round(averageSale).toLocaleString()}</p>
-        </div>
-        <div className="bg-white p-6 rounded-lg shadow-xl border-l-4 border-purple-500">
-          <h3 className="text-sm font-semibold text-gray-600 mb-2"> Estado del Sistema</h3>
-          <p className="text-lg font-bold text-green-600"> Operativo</p>
-        </div>
-      </div>
-
-      {/* Últimas ventas */}
-      <div className="bg-white p-6 rounded-lg shadow-xl">
-        <h2 className="text-2xl font-bold mb-4 text-gray-900"> Últimas Ventas Registradas</h2>
-        {completedSales.length === 0 ? (
-          <p className="text-gray-500 text-center py-8">No hay ventas registradas aún</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b-2 border-gray-200">
-                  <th className="text-left py-3 px-4">ID Pedido</th>
-                  <th className="text-left py-3 px-4">Hora</th>
-                  <th className="text-left py-3 px-4">Tipo</th>
-                  <th className="text-left py-3 px-4">Atendió</th>
-                  <th className="text-left py-3 px-4">Método Pago</th>
-                  <th className="text-left py-3 px-4">Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                {completedSales.slice(-10).reverse().map((sale) => (
-                  <tr key={sale.id} className="border-b hover:bg-gray-50">
-                    <td className="py-3 px-4 font-mono">#{String(sale.id).slice(-4)}</td>
-                    <td className="py-3 px-4">{sale.paidAt || sale.timestamp}</td>
-                    <td className="py-3 px-4">
-                      {sale.isDelivery ? (
-                        <span className="bg-orange-100 text-orange-800 px-2 py-1 rounded text-xs font-bold">🏠 Domicilio</span>
-                      ) : (
-                        <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs font-bold">🍽️ Local</span>
-                      )}
-                    </td>
-                    <td className="py-3 px-4 text-sm">{sale.waiter || 'N/A'}</td>
-                    <td className="py-3 px-4">
-                      <span className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs">
-                        {sale.paymentMethod || 'efectivo'}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4 font-bold text-green-600">${sale.total.toLocaleString()}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      {/* Main Content */}
+      <div className="flex-1 p-4 lg:p-6">
+        {/* Header con info de usuario */}
+        <div className="flex justify-between items-center mb-6 bg-white p-4 rounded-lg shadow-xl">
+          {/* Botón hamburguesa para móviles */}
+          <button 
+            onClick={() => setSidebarOpen(true)}
+            className="lg:hidden text-gray-600 hover:text-gray-900 mr-4"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+          
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 lg:w-12 lg:h-12 rounded-full bg-red-500 flex items-center justify-center text-white font-bold text-lg lg:text-xl">
+              {currentUser?.avatar || currentUser?.name?.charAt(0) || 'A'}
+            </div>
+            <div>
+              <h1 className="text-xl lg:text-3xl font-bold text-gray-900"> Panel de Administración</h1>
+              <p className="text-xs lg:text-sm text-gray-600">Administrador: {currentUser?.name || 'Admin'}</p>
+            </div>
           </div>
-        )}
+          <button onClick={onLogout} className="bg-red-500 text-white px-3 py-2 lg:px-4 rounded-lg hover:bg-red-600 font-semibold text-sm lg:text-base">
+             Salir
+          </button>
+        </div>
+
+        {/* Métricas de ventas */}
+        <div className="mb-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
+          <div className="bg-white p-4 lg:p-6 rounded-lg shadow-xl border-l-4 border-green-500">
+            <h3 className="text-xs lg:text-sm font-semibold text-gray-600 mb-2">📊 Ventas Completadas</h3>
+            <p className="text-2xl lg:text-4xl font-bold text-gray-900">{metrics.totalCount}</p>
+          </div>
+          <div className="bg-white p-4 lg:p-6 rounded-lg shadow-xl border-l-4 border-blue-500">
+            <h3 className="text-xs lg:text-sm font-semibold text-gray-600 mb-2">💰 Total Vendido</h3>
+            <p className="text-2xl lg:text-3xl font-bold text-green-600">${metrics.totalSales.toLocaleString()}</p>
+          </div>
+          <div className="bg-white p-4 lg:p-6 rounded-lg shadow-xl border-l-4 border-yellow-500">
+            <h3 className="text-xs lg:text-sm font-semibold text-gray-600 mb-2">📈 Ticket Promedio</h3>
+            <p className="text-2xl lg:text-3xl font-bold text-blue-600">${Math.round(metrics.averageSale).toLocaleString()}</p>
+          </div>
+          <div className="bg-white p-4 lg:p-6 rounded-lg shadow-xl border-l-4 border-purple-500">
+            <h3 className="text-xs lg:text-sm font-semibold text-gray-600 mb-2">🏪 Ventas de Hoy</h3>
+            <p className="text-2xl lg:text-3xl font-bold text-purple-600">${metrics.todaySales.toLocaleString()}</p>
+            <p className="text-xs text-gray-500 mt-1">{metrics.todayCount} pedidos</p>
+          </div>
+        </div>
+
+        {/* Estadísticas adicionales */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+          <div className="bg-white p-6 rounded-lg shadow-xl">
+            <h3 className="text-lg font-bold text-gray-900 mb-4">📊 Tipos de Pedido</h3>
+            <div className="space-y-3">
+              <div className="flex justify-between items-center p-3 bg-blue-50 rounded">
+                <span className="font-semibold">🍽️ Pedidos en Local</span>
+                <span className="text-2xl font-bold text-blue-600">{metrics.localOrders}</span>
+              </div>
+              <div className="flex justify-between items-center p-3 bg-orange-50 rounded">
+                <span className="font-semibold">🏍️ Pedidos a Domicilio</span>
+                <span className="text-2xl font-bold text-orange-600">{metrics.deliveryOrders}</span>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

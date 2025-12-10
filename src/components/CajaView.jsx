@@ -1,19 +1,29 @@
 import React, { useState } from 'react';
+import { useOrders } from '../hooks/useOrders';
+import { useToast } from '../hooks/useToast';
+import { PAYMENT_METHODS } from '../constants/paymentMethods';
 
-const CajaView = ({ onLogout, pendingBills = [], onPayBill, currentUser }) => {
+const CajaView = ({ onLogout, currentUser }) => {
+  const { pendingBills, processPayment } = useOrders();
+  const { showSuccess, showError } = useToast();
+  
   const [selectedBill, setSelectedBill] = useState(null);
-  const [paymentMethod, setPaymentMethod] = useState('efectivo');
+  const [paymentMethod, setPaymentMethod] = useState(PAYMENT_METHODS.EFECTIVO);
 
   const handlePayment = () => {
-    if (selectedBill && onPayBill) {
-      onPayBill({
-        ...selectedBill,
-        paymentMethod,
-        paidAt: new Date().toLocaleTimeString(),
-        cashier: currentUser?.name || 'Cajero'
-      });
+    if (!selectedBill) {
+      showError('Selecciona una factura para procesar el pago');
+      return;
+    }
+
+    const result = processPayment(selectedBill.id, paymentMethod, currentUser);
+
+    if (result.success) {
+      showSuccess(` Pago procesado exitosamente - ${paymentMethod}`);
       setSelectedBill(null);
-      setPaymentMethod('efectivo');
+      setPaymentMethod(PAYMENT_METHODS.EFECTIVO);
+    } else {
+      showError(result.errors?.[0] || 'Error al procesar el pago');
     }
   };
 
@@ -31,7 +41,7 @@ const CajaView = ({ onLogout, pendingBills = [], onPayBill, currentUser }) => {
           </div>
         </div>
         <button onClick={onLogout} className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 font-semibold">
-          🚪 Cerrar Sesión
+           Cerrar Sesión
         </button>
       </div>
 
@@ -112,10 +122,10 @@ const CajaView = ({ onLogout, pendingBills = [], onPayBill, currentUser }) => {
                   onChange={(e) => setPaymentMethod(e.target.value)}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="efectivo">Efectivo</option>
-                  <option value="tarjeta"> Tarjeta Débito/Crédito</option>
-                  <option value="transferencia"> Transferencia</option>
-                  <option value="nequi"> Nequi</option>
+                  <option value={PAYMENT_METHODS.EFECTIVO}> Efectivo</option>
+                  <option value={PAYMENT_METHODS.TARJETA}> Tarjeta Débito/Crédito</option>
+                  <option value={PAYMENT_METHODS.TRANSFERENCIA}> Transferencia</option>
+                  
                 </select>
               </div>
 
