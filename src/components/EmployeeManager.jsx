@@ -1,27 +1,48 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
+import { useEmployees } from '../hooks/useEmployees';
+import { useToast } from '../hooks/useToast';
+import { ROLES } from '../constants/roles';
+import ConfirmDialog from './ConfirmDialog';
 
-const EmployeeManager = ({ employees, onAddEmployee, onUpdateEmployee, onDeleteEmployee, onBack }) => {
+const EmployeeManager = ({ onBack }) => {
+  const { employees, createEmployee, updateEmployee, deleteEmployee } = useEmployees();
+  const { showSuccess, showError } = useToast();
+  
   const [showForm, setShowForm] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState(null);
   const [formData, setFormData] = useState({
     username: '',
     password: '',
     name: '',
-    role: 'mesero'
+    role: ROLES.MESERO,
+    email: ''
   });
-  const [notification, setNotification] = useState(null);
 
-  const roles = [
-    { value: 'mesero', label: ' Mesero', color: 'blue' },
-    { value: 'cocina', label: ' Cocinero', color: 'red' },
-    { value: 'cajero', label: ' Cajero', color: 'green' },
-    { value: 'domicilios', label: ' Domicilios', color: 'orange' }
+  // Estados para búsqueda y filtros
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterRole, setFilterRole] = useState('all');
+  
+  // Estado para confirmación
+  const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, employee: null });
+
+  const rolesOptions = [
+    { value: ROLES.MESERO, label: ' Mesero', color: 'blue' },
+    { value: ROLES.COCINA, label: ' Cocinero', color: 'red' },
+    { value: ROLES.CAJERO, label: ' Cajero', color: 'green' },
+    { value: ROLES.DOMICILIOS, label: ' Domicilios', color: 'orange' }
   ];
 
-  const showNotification = (message, type = 'success') => {
-    setNotification({ message, type });
-    setTimeout(() => setNotification(null), 3000);
-  };
+  // Filtrar empleados
+  const filteredEmployees = useMemo(() => {
+    return employees.filter(employee => {
+      const matchesSearch = employee.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           employee.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           (employee.email && employee.email.toLowerCase().includes(searchTerm.toLowerCase()));
+      const matchesRole = filterRole === 'all' || employee.role === filterRole;
+      
+      return matchesSearch && matchesRole;
+    });
+  }, [employees, searchTerm, filterRole]);
 
   const handleInputChange = (e) => {
     setFormData({
@@ -39,30 +60,30 @@ const EmployeeManager = ({ employees, onAddEmployee, onUpdateEmployee, onDeleteE
     );
 
     if (usernameExists) {
-      showNotification(' El nombre de usuario ya existe', 'error');
+      showError(' El nombre de usuario ya existe');
       return;
     }
 
     if (editingEmployee) {
-      onUpdateEmployee({
-        ...editingEmployee,
-        ...formData
-      });
-      showNotification(` Empleado ${formData.name} actualizado exitosamente`);
+      const result = updateEmployee(editingEmployee.id, formData);
+      if (result.success) {
+        showSuccess(`Empleado ${formData.name} actualizado exitosamente`);
+        setFormData({ username: '', password: '', name: '', role: ROLES.MESERO, email: '' });
+        setEditingEmployee(null);
+        setShowForm(false);
+      } else {
+        showError(result.errors?.[0] || 'Error al actualizar empleado');
+      }
     } else {
-      const newEmployee = {
-        id: `EMP-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        ...formData,
-        createdAt: new Date().toLocaleDateString(),
-        avatar: formData.name.charAt(0).toUpperCase()
-      };
-      onAddEmployee(newEmployee);
-      showNotification(` Empleado ${formData.name} registrado exitosamente`);
+      const result = createEmployee(formData);
+      if (result.success) {
+        showSuccess(` Empleado ${formData.name} registrado exitosamente`);
+        setFormData({ username: '', password: '', name: '', role: ROLES.MESERO, email: '' });
+        setShowForm(false);
+      } else {
+        showError(result.errors?.[0] || 'Error al crear empleado');
+      }
     }
-
-    setFormData({ username: '', password: '', name: '', role: 'mesero' });
-    setEditingEmployee(null);
-    setShowForm(false);
   };
 
   const handleEdit = (employee) => {
@@ -71,52 +92,92 @@ const EmployeeManager = ({ employees, onAddEmployee, onUpdateEmployee, onDeleteE
       username: employee.username,
       password: employee.password,
       name: employee.name,
-      role: employee.role
+      role: employee.role,
+      email: employee.email || ''
     });
     setShowForm(true);
   };
 
   const handleDelete = (employee) => {
-    if (window.confirm(`¿Estás seguro de eliminar a ${employee.name}?`)) {
-      onDeleteEmployee(employee.id);
-      showNotification(`🗑️ Empleado ${employee.name} eliminado`);
+    setConfirmDialog({ isOpen: true, employee });
+  };
+
+  const confirmDelete = () => {
+    const employee = confirmDialog.employee;
+    const result = deleteEmployee(employee.id);
+    if (result.success) {
+      showSuccess(`🗑️ Empleado ${employee.name} eliminado`);
+    } else {
+      showError(result.errors?.[0] || 'Error al eliminar empleado');
     }
   };
 
   const handleCancel = () => {
-    setFormData({ username: '', password: '', name: '', role: 'mesero' });
+    setFormData({ username: '', password: '', name: '', role: ROLES.MESERO, email: '' });
     setEditingEmployee(null);
     setShowForm(false);
   };
 
   const getRoleColor = (role) => {
-    const roleData = roles.find(r => r.value === role);
+    const roleData = rolesOptions.find(r => r.value === role);
     return roleData?.color || 'gray';
   };
 
   const getRoleLabel = (role) => {
-    const roleData = roles.find(r => r.value === role);
+    const roleData = rolesOptions.find(r => r.value === role);
     return roleData?.label || role;
   };
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-purple-50 to-pink-50 p-6">
-      {/* Notificación */}
-      {notification && (
-        <div className={`fixed top-4 right-4 z-50 px-6 py-4 rounded-lg shadow-lg animate-bounce ${
-          notification.type === 'error' ? 'bg-red-500 text-white' : 'bg-green-500 text-white'
-        }`}>
-          {notification.message}
-        </div>
-      )}
-
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-50 p-6 animate-fadeIn">
       <div className="max-w-6xl mx-auto">
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900">👥 Gestión de Empleados</h1>
-          <button onClick={onBack} className="text-purple-600 hover:text-purple-800 font-semibold">
+          <button onClick={onBack} className="text-purple-600 hover:text-purple-800 font-semibold transition">
             ← Volver al Dashboard
           </button>
         </div>
+
+        {/* Barra de búsqueda y filtros */}
+        {!showForm && (
+          <div className="bg-white p-4 rounded-lg shadow-md mb-6 animate-slideInUp">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Búsqueda */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">🔍 Buscar</label>
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Buscar por nombre, usuario o email..."
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                />
+              </div>
+
+              {/* Filtro por rol */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">👔 Rol</label>
+                <select
+                  value={filterRole}
+                  onChange={(e) => setFilterRole(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                >
+                  <option value="all">Todos los roles</option>
+                  {rolesOptions.map(role => (
+                    <option key={role.value} value={role.value}>
+                      {role.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Contador de resultados */}
+            <div className="mt-3 text-sm text-gray-600">
+              Mostrando <span className="font-bold text-purple-600">{filteredEmployees.length}</span> de <span className="font-bold">{employees.length}</span> empleados
+            </div>
+          </div>
+        )}
 
         {/* Botón agregar empleado */}
         {!showForm && (
@@ -162,7 +223,7 @@ const EmployeeManager = ({ employees, onAddEmployee, onUpdateEmployee, onDeleteE
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                     required
                   >
-                    {roles.map(role => (
+                    {rolesOptions.map(role => (
                       <option key={role.value} value={role.value}>
                         {role.label}
                       </option>
@@ -206,7 +267,7 @@ const EmployeeManager = ({ employees, onAddEmployee, onUpdateEmployee, onDeleteE
                   type="submit"
                   className="bg-purple-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-purple-700 transition"
                 >
-                  {editingEmployee ? '💾 Guardar Cambios' : ' Registrar Empleado'}
+                  {editingEmployee ? ' Guardar Cambios' : ' Registrar Empleado'}
                 </button>
                 <button
                   type="button"
@@ -221,12 +282,14 @@ const EmployeeManager = ({ employees, onAddEmployee, onUpdateEmployee, onDeleteE
         )}
 
         {/* Lista de empleados */}
-        <div className="bg-white rounded-lg shadow-xl p-6">
-          <h2 className="text-xl font-bold mb-4"> Empleados Registrados ({employees.length})</h2>
+        <div className="bg-white rounded-lg shadow-xl p-6 animate-slideInUp">
+          <h2 className="text-xl font-bold mb-4">📋 Empleados Registrados ({filteredEmployees.length})</h2>
           
-          {employees.length === 0 ? (
+          {filteredEmployees.length === 0 ? (
             <p className="text-gray-500 text-center py-8">
-              No hay empleados registrados. Registra el primer empleado para comenzar.
+              {searchTerm || filterRole !== 'all' 
+                ? 'No se encontraron empleados con los filtros aplicados.' 
+                : 'No hay empleados registrados. Registra el primer empleado para comenzar.'}
             </p>
           ) : (
             <div className="overflow-x-auto">
@@ -242,7 +305,7 @@ const EmployeeManager = ({ employees, onAddEmployee, onUpdateEmployee, onDeleteE
                   </tr>
                 </thead>
                 <tbody>
-                  {employees.map((employee) => (
+                  {filteredEmployees.map((employee) => (
                     <tr key={employee.id} className="border-b hover:bg-gray-50">
                       <td className="py-3 px-4">
                         <div className={`w-10 h-10 rounded-full bg-${getRoleColor(employee.role)}-500 flex items-center justify-center text-white font-bold`}>
@@ -279,6 +342,19 @@ const EmployeeManager = ({ employees, onAddEmployee, onUpdateEmployee, onDeleteE
           )}
         </div>
       </div>
+
+      {/* Diálogo de confirmación */}
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        onClose={() => setConfirmDialog({ isOpen: false, employee: null })}
+        onConfirm={confirmDelete}
+        title="¿Eliminar empleado?"
+        message={`Estás a punto de eliminar a "${confirmDialog.employee?.name}". Esta acción no se puede deshacer y el empleado no podrá iniciar sesión.`}
+        confirmText="Sí, eliminar"
+        cancelText="Cancelar"
+        confirmColor="red"
+        icon="👤"
+      />
     </div>
   );
 };

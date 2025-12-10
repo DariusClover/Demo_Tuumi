@@ -1,6 +1,21 @@
 import React from 'react';
+import { useOrders } from '../hooks/useOrders';
+import { useToast } from '../hooks/useToast';
 
-const KDSView = ({ onLogout, orders = [], onOrderReady, currentUser }) => {
+const KDSView = ({ onLogout, currentUser }) => {
+  const { orders, markOrderReady } = useOrders();
+  const { showSuccess, showError } = useToast();
+
+  const handleOrderReady = (orderId) => {
+    const result = markOrderReady(orderId);
+    
+    if (result.success) {
+      showSuccess(' Pedido marcado como listo');
+    } else {
+      showError(result.errors?.[0] || 'Error al marcar pedido como listo');
+    }
+  };
+
   return (
     <div className="flex flex-col min-h-screen bg-gray-900 text-white p-6">
       {/* Header con info de usuario */}
@@ -61,10 +76,10 @@ const KDSView = ({ onLogout, orders = [], onOrderReady, currentUser }) => {
                       <div className="border-t-2 pt-3">
                         <p className="text-right font-bold text-lg mb-2">Total: <span className="text-green-600">${order.total.toLocaleString()}</span></p>
                         <button
-                            onClick={() => onOrderReady && onOrderReady(order)}
+                            onClick={() => handleOrderReady(order.id)}
                             className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg transition shadow-lg"
                         >
-                            ✅ Marcar como Listo
+                             Marcar como Listo
                         </button>
                       </div>
                   </div>

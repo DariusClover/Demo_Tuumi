@@ -1,12 +1,21 @@
 import React, { useState } from 'react';
+import { useProducts } from '../hooks/useProducts';
+import { useOrders } from '../hooks/useOrders';
+import { useToast } from '../hooks/useToast';
 
-const DomiciliosView = ({ onLogout, onAddDeliveryOrder, products = [], currentUser }) => {
+const DomiciliosView = ({ onLogout, currentUser }) => {
+  const { products, getAvailableProducts } = useProducts();
+  const { createDeliveryOrder } = useOrders();
+  const { showSuccess, showError } = useToast();
+  
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [address, setAddress] = useState('');
   const [cart, setCart] = useState([]);
   const [orderSent, setOrderSent] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  const availableProducts = getAvailableProducts();
 
   const addToCart = (product) => {
     setCart([...cart, product]);
@@ -23,36 +32,37 @@ const DomiciliosView = ({ onLogout, onAddDeliveryOrder, products = [], currentUs
     
     if (isSubmitting) return;
     
+    if (cart.length === 0) {
+      showError('El carrito está vacío');
+      return;
+    }
+    
     setIsSubmitting(true);
     
-    const orderId = Date.now();
-    const deliveryOrder = {
-      id: orderId,
+    const deliveryInfo = {
       customerName,
       customerPhone,
-      address,
-      items: cart,
-      total: total,
-      status: 'pendiente',
-      timestamp: new Date().toLocaleTimeString(),
-      channel: 'whatsapp',
-      isDelivery: true,
-      waiter: currentUser?.name || 'Domicilios'
+      address
     };
 
-    if (onAddDeliveryOrder) {
-      onAddDeliveryOrder(deliveryOrder);
-    }
+    const result = createDeliveryOrder(cart, deliveryInfo, currentUser);
 
-    setOrderSent(true);
-    setTimeout(() => {
-      setCustomerName('');
-      setCustomerPhone('');
-      setAddress('');
-      setCart([]);
-      setOrderSent(false);
+    if (result.success) {
+      showSuccess('Pedido a domicilio creado exitosamente');
+      setOrderSent(true);
+      
+      setTimeout(() => {
+        setCustomerName('');
+        setCustomerPhone('');
+        setAddress('');
+        setCart([]);
+        setOrderSent(false);
+        setIsSubmitting(false);
+      }, 3000);
+    } else {
+      showError(result.errors?.[0] || 'Error al crear el pedido');
       setIsSubmitting(false);
-    }, 3000);
+    }
   };
 
   return (
@@ -75,7 +85,7 @@ const DomiciliosView = ({ onLogout, onAddDeliveryOrder, products = [], currentUs
 
       <div className="max-w-5xl mx-auto">
         <div className="mb-6 p-4 bg-blue-50 border-l-4 border-blue-500 rounded">
-          <h3 className="font-bold text-blue-900 mb-2">📱 Registro de Pedidos por WhatsApp</h3>
+          <h3 className="font-bold text-blue-900 mb-2"> Registro de Pedidos por WhatsApp</h3>
           <p className="text-sm text-blue-700">
             Ingresa los pedidos recibidos por WhatsApp. El sistema sincronizará automáticamente con POS y Cocina.
           </p>
@@ -132,21 +142,25 @@ const DomiciliosView = ({ onLogout, onAddDeliveryOrder, products = [], currentUs
               <div className="mt-6">
                 <h3 className="font-bold mb-3">Menú Disponible</h3>
                 <div className="max-h-64 overflow-y-auto space-y-2">
-                  {products.map((product) => (
-                    <div key={product.id} className="flex justify-between items-center p-2 border rounded hover:bg-gray-50">
-                      <div>
-                        <p className="font-medium text-sm">{product.name}</p>
-                        <p className="text-gray-600 text-xs">${product.price.toLocaleString()}</p>
+                  {availableProducts.length === 0 ? (
+                    <p className="text-gray-500 text-center py-4">No hay productos disponibles</p>
+                  ) : (
+                    availableProducts.map((product) => (
+                      <div key={product.id} className="flex justify-between items-center p-2 border rounded hover:bg-gray-50">
+                        <div>
+                          <p className="font-medium text-sm">{product.name}</p>
+                          <p className="text-gray-600 text-xs">${product.price.toLocaleString()}</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => addToCart(product)}
+                          className="bg-green-500 text-white px-3 py-1 text-xs rounded hover:bg-green-600"
+                        >
+                           Agregar
+                        </button>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => addToCart(product)}
-                        className="bg-green-500 text-white px-3 py-1 text-xs rounded hover:bg-green-600"
-                      >
-                        + Agregar
-                      </button>
-                    </div>
-                  ))}
+                    ))
+                  )}
                 </div>
               </div>
             </div>
