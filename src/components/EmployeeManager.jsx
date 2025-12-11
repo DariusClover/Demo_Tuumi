@@ -23,7 +23,11 @@ const EmployeeManager = ({ onBack }) => {
   const [filterRole, setFilterRole] = useState('all');
   
   // Estado para confirmación
-  const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, employee: null });
+  const [confirmDialog, setConfirmDialog] = useState({ 
+    isOpen: false, 
+    type: null, // 'create', 'edit', 'delete'
+    employee: null 
+  });
 
   const rolesOptions = [
     { value: ROLES.MESERO, label: ' Mesero', color: 'blue' },
@@ -60,29 +64,46 @@ const EmployeeManager = ({ onBack }) => {
     );
 
     if (usernameExists) {
-      showError(' El nombre de usuario ya existe');
+      showError('⚠️ El nombre de usuario ya existe');
       return;
     }
 
+    const employeeData = { ...formData };
     if (editingEmployee) {
-      const result = updateEmployee(editingEmployee.id, formData);
-      if (result.success) {
-        showSuccess(`Empleado ${formData.name} actualizado exitosamente`);
-        setFormData({ username: '', password: '', name: '', role: ROLES.MESERO, email: '' });
-        setEditingEmployee(null);
-        setShowForm(false);
-      } else {
-        showError(result.errors?.[0] || 'Error al actualizar empleado');
-      }
+      setConfirmDialog({ 
+        isOpen: true, 
+        type: 'edit', 
+        employee: { ...employeeData, id: editingEmployee.id } 
+      });
     } else {
-      const result = createEmployee(formData);
-      if (result.success) {
-        showSuccess(` Empleado ${formData.name} registrado exitosamente`);
-        setFormData({ username: '', password: '', name: '', role: ROLES.MESERO, email: '' });
-        setShowForm(false);
-      } else {
-        showError(result.errors?.[0] || 'Error al crear empleado');
-      }
+      setConfirmDialog({ 
+        isOpen: true, 
+        type: 'create', 
+        employee: employeeData 
+      });
+    }
+  };
+
+  const confirmCreate = () => {
+    const result = createEmployee(confirmDialog.employee);
+    if (result.success) {
+      showSuccess(`✅ Empleado ${confirmDialog.employee.name} registrado exitosamente`);
+      setFormData({ username: '', password: '', name: '', role: ROLES.MESERO, email: '' });
+      setShowForm(false);
+    } else {
+      showError(result.errors?.[0] || 'Error al crear empleado');
+    }
+  };
+
+  const confirmEdit = () => {
+    const result = updateEmployee(confirmDialog.employee.id, confirmDialog.employee);
+    if (result.success) {
+      showSuccess(`✅ Empleado ${confirmDialog.employee.name} actualizado exitosamente`);
+      setFormData({ username: '', password: '', name: '', role: ROLES.MESERO, email: '' });
+      setEditingEmployee(null);
+      setShowForm(false);
+    } else {
+      showError(result.errors?.[0] || 'Error al actualizar empleado');
     }
   };
 
@@ -99,7 +120,7 @@ const EmployeeManager = ({ onBack }) => {
   };
 
   const handleDelete = (employee) => {
-    setConfirmDialog({ isOpen: true, employee });
+    setConfirmDialog({ isOpen: true, type: 'delete', employee });
   };
 
   const confirmDelete = () => {
@@ -109,6 +130,16 @@ const EmployeeManager = ({ onBack }) => {
       showSuccess(`🗑️ Empleado ${employee.name} eliminado`);
     } else {
       showError(result.errors?.[0] || 'Error al eliminar empleado');
+    }
+  };
+
+  const handleConfirm = () => {
+    if (confirmDialog.type === 'delete') {
+      confirmDelete();
+    } else if (confirmDialog.type === 'create') {
+      confirmCreate();
+    } else if (confirmDialog.type === 'edit') {
+      confirmEdit();
     }
   };
 
@@ -346,14 +377,36 @@ const EmployeeManager = ({ onBack }) => {
       {/* Diálogo de confirmación */}
       <ConfirmDialog
         isOpen={confirmDialog.isOpen}
-        onClose={() => setConfirmDialog({ isOpen: false, employee: null })}
-        onConfirm={confirmDelete}
-        title="¿Eliminar empleado?"
-        message={`Estás a punto de eliminar a "${confirmDialog.employee?.name}". Esta acción no se puede deshacer y el empleado no podrá iniciar sesión.`}
-        confirmText="Sí, eliminar"
+        onClose={() => setConfirmDialog({ isOpen: false, type: null, employee: null })}
+        onConfirm={handleConfirm}
+        title={
+          confirmDialog.type === 'delete' ? '¿Eliminar empleado?' :
+          confirmDialog.type === 'create' ? '¿Crear nuevo empleado?' :
+          '¿Actualizar empleado?'
+        }
+        message={
+          confirmDialog.type === 'delete' 
+            ? `Estás a punto de eliminar a "${confirmDialog.employee?.name}". Esta acción no se puede deshacer y el empleado no podrá iniciar sesión.`
+            : confirmDialog.type === 'create'
+            ? `Estás a punto de crear el empleado "${confirmDialog.employee?.name}" con el usuario "${confirmDialog.employee?.username}". ¿Deseas continuar?`
+            : `Estás a punto de actualizar la información de "${confirmDialog.employee?.name}". ¿Deseas guardar los cambios?`
+        }
+        confirmText={
+          confirmDialog.type === 'delete' ? 'Sí, eliminar' :
+          confirmDialog.type === 'create' ? 'Sí, crear' :
+          'Sí, actualizar'
+        }
         cancelText="Cancelar"
-        confirmColor="red"
-        icon="👤"
+        confirmColor={
+          confirmDialog.type === 'delete' ? 'red' :
+          confirmDialog.type === 'create' ? 'green' :
+          'blue'
+        }
+        icon={
+          confirmDialog.type === 'delete' ? '🗑️' :
+          confirmDialog.type === 'create' ? '✨' :
+          '✏️'
+        }
       />
     </div>
   );

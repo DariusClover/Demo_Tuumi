@@ -15,11 +15,16 @@ const CategoryManager = ({ onBack }) => {
     name: '',
     icon: '📦',
     color: 'gray',
-    description: ''
+    description: '',
+    isActive: true
   });
   
-  // Estado para confirmación
-  const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, category: null });
+  // Estado para confirmaciones
+  const [confirmDialog, setConfirmDialog] = useState({ 
+    isOpen: false, 
+    type: '', // 'delete', 'create', 'edit'
+    category: null 
+  });
 
   const colorOptions = [
     { value: 'red', label: 'Rojo', bg: 'bg-red-500' },
@@ -29,7 +34,9 @@ const CategoryManager = ({ onBack }) => {
     { value: 'blue', label: 'Azul', bg: 'bg-blue-500' },
     { value: 'purple', label: 'Morado', bg: 'bg-purple-500' },
     { value: 'pink', label: 'Rosa', bg: 'bg-pink-500' },
-    { value: 'gray', label: 'Gris', bg: 'bg-gray-500' }
+    { value: 'gray', label: 'Gris', bg: 'bg-gray-500' },
+    
+    {}
   ];
 
   const iconOptions = ['🍔', '🍕', '🌮', '🥗', '🍜', '🍝', '🥤', '☕', '🍰', '🍪', '🍟', '🌭', '🥙', '🍱', '🍛', '📦'];
@@ -45,21 +52,37 @@ const CategoryManager = ({ onBack }) => {
     e.preventDefault();
 
     if (editingCategory) {
-      const result = updateCategory(editingCategory.id, formData);
-      if (result.success) {
-        showSuccess(`✅ Categoría "${formData.name}" actualizada`);
-        handleCancel();
-      } else {
-        showError(result.errors?.join(', ') || 'Error al actualizar');
-      }
+      setConfirmDialog({ 
+        isOpen: true, 
+        type: 'edit', 
+        category: { ...formData, id: editingCategory.id } 
+      });
     } else {
-      const result = createCategory(formData, currentUser?.id);
-      if (result.success) {
-        showSuccess(`✅ Categoría "${formData.name}" creada`);
-        handleCancel();
-      } else {
-        showError(result.errors?.join(', ') || 'Error al crear');
-      }
+      setConfirmDialog({ 
+        isOpen: true, 
+        type: 'create', 
+        category: formData 
+      });
+    }
+  };
+
+  const confirmCreate = () => {
+    const result = createCategory(confirmDialog.category, currentUser?.id);
+    if (result.success) {
+      showSuccess(`✅ Categoría "${confirmDialog.category.name}" creada`);
+      handleCancel();
+    } else {
+      showError(result.errors?.join(', ') || 'Error al crear');
+    }
+  };
+
+  const confirmEdit = () => {
+    const result = updateCategory(confirmDialog.category.id, confirmDialog.category);
+    if (result.success) {
+      showSuccess(`✅ Categoría "${confirmDialog.category.name}" actualizada`);
+      handleCancel();
+    } else {
+      showError(result.errors?.join(', ') || 'Error al actualizar');
     }
   };
 
@@ -69,13 +92,14 @@ const CategoryManager = ({ onBack }) => {
       name: category.name,
       icon: category.icon,
       color: category.color,
-      description: category.description || ''
+      description: category.description || '',
+      isActive: category.isActive !== undefined ? category.isActive : true
     });
     setShowForm(true);
   };
 
   const handleDelete = (category) => {
-    setConfirmDialog({ isOpen: true, category });
+    setConfirmDialog({ isOpen: true, type: 'delete', category });
   };
 
   const confirmDelete = () => {
@@ -88,6 +112,16 @@ const CategoryManager = ({ onBack }) => {
     }
   };
 
+  const handleConfirm = () => {
+    if (confirmDialog.type === 'delete') {
+      confirmDelete();
+    } else if (confirmDialog.type === 'create') {
+      confirmCreate();
+    } else if (confirmDialog.type === 'edit') {
+      confirmEdit();
+    }
+  };
+
   const handleToggleActive = (category) => {
     const result = toggleActive(category.id);
     if (result.success) {
@@ -96,7 +130,7 @@ const CategoryManager = ({ onBack }) => {
   };
 
   const handleCancel = () => {
-    setFormData({ name: '', icon: '📦', color: 'gray', description: '' });
+    setFormData({ name: '', icon: '📦', color: 'gray', description: '', isActive: true });
     setEditingCategory(null);
     setShowForm(false);
   };
@@ -209,6 +243,21 @@ const CategoryManager = ({ onBack }) => {
                 />
               </div>
 
+              <div className="mb-4">
+                <label className="flex items-center gap-3 cursor-pointer p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition">
+                  <input
+                    type="checkbox"
+                    checked={formData.isActive}
+                    onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
+                    className="w-5 h-5 text-purple-600 focus:ring-purple-500 rounded"
+                  />
+                  <div>
+                    <span className="text-sm font-bold text-gray-700">Categoría activa</span>
+                    <p className="text-xs text-gray-500">Las categorías inactivas no aparecerán en el selector de productos</p>
+                  </div>
+                </label>
+              </div>
+
               <div className="flex gap-4">
                 <button
                   type="submit"
@@ -302,14 +351,28 @@ const CategoryManager = ({ onBack }) => {
       {/* Diálogo de confirmación */}
       <ConfirmDialog
         isOpen={confirmDialog.isOpen}
-        onClose={() => setConfirmDialog({ isOpen: false, category: null })}
-        onConfirm={confirmDelete}
-        title="¿Eliminar categoría?"
-        message={`Estás a punto de eliminar la categoría "${confirmDialog.category?.name}". Todos los productos de esta categoría se moverán a "Sin categoría". Esta acción no se puede deshacer.`}
-        confirmText="Sí, eliminar"
+        onClose={() => setConfirmDialog({ isOpen: false, type: '', category: null })}
+        onConfirm={handleConfirm}
+        title={
+          confirmDialog.type === 'delete' ? '¿Eliminar categoría?' :
+          confirmDialog.type === 'create' ? '¿Crear categoría?' :
+          '¿Actualizar categoría?'
+        }
+        message={
+          confirmDialog.type === 'delete' 
+            ? `Estás a punto de eliminar la categoría "${confirmDialog.category?.name}". Todos los productos de esta categoría se moverán a "Sin categoría". Esta acción no se puede deshacer.`
+            : confirmDialog.type === 'create'
+            ? `¿Confirmas la creación de la categoría "${confirmDialog.category?.name}"?`
+            : `¿Confirmas los cambios realizados a la categoría "${confirmDialog.category?.name}"?`
+        }
+        confirmText={
+          confirmDialog.type === 'delete' ? 'Sí, eliminar' :
+          confirmDialog.type === 'create' ? 'Sí, crear' :
+          'Sí, actualizar'
+        }
         cancelText="Cancelar"
-        confirmColor="red"
-        icon="🏷️"
+        confirmColor={confirmDialog.type === 'delete' ? 'red' : confirmDialog.type === 'create' ? 'green' : 'blue'}
+        icon={confirmDialog.type === 'delete' ? '🗑️' : confirmDialog.type === 'create' ? '✨' : '✏️'}
       />
     </div>
   );

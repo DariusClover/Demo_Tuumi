@@ -16,7 +16,8 @@ const ProductManager = ({ onBack }) => {
     name: '', 
     price: '', 
     categoryId: '',
-    description: ''
+    description: '',
+    isAvailable: true
   });
   
   // Estados para búsqueda y filtros
@@ -24,8 +25,12 @@ const ProductManager = ({ onBack }) => {
   const [filterCategory, setFilterCategory] = useState('all');
   const [filterAvailability, setFilterAvailability] = useState('all');
   
-  // Estado para confirmación
-  const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, product: null });
+  // Estado para confirmaciones
+  const [confirmDialog, setConfirmDialog] = useState({ 
+    isOpen: false, 
+    type: '', // 'delete', 'create', 'edit'
+    product: null 
+  });
   
   // Calcular categorías activas con useMemo para que se actualice cuando cambien las categorías
   const activeCategories = useMemo(() => {
@@ -53,27 +58,45 @@ const ProductManager = ({ onBack }) => {
       name: formData.name,
       price: parseFloat(formData.price),
       categoryId: formData.categoryId || null,
-      description: formData.description
+      description: formData.description,
+      isAvailable: formData.isAvailable
     };
 
     if (editingProduct) {
-      const result = updateProduct(editingProduct.id, productData);
-      if (result.success) {
-        showSuccess(`Producto "${formData.name}" actualizado`);
-        setEditingProduct(null);
-      } else {
-        showError(result.errors?.[0] || 'Error al actualizar producto');
-      }
+      setConfirmDialog({ 
+        isOpen: true, 
+        type: 'edit', 
+        product: { ...productData, id: editingProduct.id } 
+      });
     } else {
-      const result = createProduct(productData, currentUser);
-      if (result.success) {
-        showSuccess(`Producto "${formData.name}" creado`);
-      } else {
-        showError(result.errors?.[0] || 'Error al crear producto');
-      }
+      setConfirmDialog({ 
+        isOpen: true, 
+        type: 'create', 
+        product: productData 
+      });
     }
-    
-    setFormData({ name: '', price: '', categoryId: '', description: '' });
+  };
+
+  const confirmCreate = () => {
+    const result = createProduct(confirmDialog.product, currentUser);
+    if (result.success) {
+      showSuccess(`✅ Producto "${confirmDialog.product.name}" creado`);
+      setFormData({ name: '', price: '', categoryId: '', description: '', isAvailable: true });
+      setEditingProduct(null);
+    } else {
+      showError(result.errors?.[0] || 'Error al crear producto');
+    }
+  };
+
+  const confirmEdit = () => {
+    const result = updateProduct(confirmDialog.product.id, confirmDialog.product);
+    if (result.success) {
+      showSuccess(`✅ Producto "${confirmDialog.product.name}" actualizado`);
+      setFormData({ name: '', price: '', categoryId: '', description: '', isAvailable: true });
+      setEditingProduct(null);
+    } else {
+      showError(result.errors?.[0] || 'Error al actualizar producto');
+    }
   };
 
   const handleEdit = (product) => {
@@ -82,21 +105,32 @@ const ProductManager = ({ onBack }) => {
       name: product.name, 
       price: product.price,
       categoryId: product.categoryId || '',
-      description: product.description || ''
+      description: product.description || '',
+      isAvailable: product.isAvailable !== undefined ? product.isAvailable : true
     });
   };
 
   const handleDelete = (product) => {
-    setConfirmDialog({ isOpen: true, product });
+    setConfirmDialog({ isOpen: true, type: 'delete', product });
   };
 
   const confirmDelete = () => {
     const product = confirmDialog.product;
     const result = deleteProduct(product.id);
     if (result.success) {
-      showSuccess(`Producto "${product.name}" eliminado`);
+      showSuccess(`🗑️ Producto "${product.name}" eliminado`);
     } else {
       showError(result.errors?.[0] || 'Error al eliminar producto');
+    }
+  };
+
+  const handleConfirm = () => {
+    if (confirmDialog.type === 'delete') {
+      confirmDelete();
+    } else if (confirmDialog.type === 'create') {
+      confirmCreate();
+    } else if (confirmDialog.type === 'edit') {
+      confirmEdit();
     }
   };
 
@@ -225,6 +259,22 @@ const ProductManager = ({ onBack }) => {
                 rows="3"
               />
             </div>
+            <div className="mb-4">
+              <label className="flex items-center gap-3 cursor-pointer p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition">
+                <input
+                  type="checkbox"
+                  checked={formData.isAvailable}
+                  onChange={(e) => setFormData({ ...formData, isAvailable: e.target.checked })}
+                  className="w-5 h-5 text-green-500 rounded focus:ring-2 focus:ring-green-500"
+                />
+                <div className="flex-1">
+                  <span className="font-semibold text-gray-700">Producto disponible</span>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Los productos no disponibles no aparecen en el menú
+                  </p>
+                </div>
+              </label>
+            </div>
             <div className="flex items-center justify-between">
               <button
                 type="submit"
@@ -326,14 +376,36 @@ const ProductManager = ({ onBack }) => {
       {/* Diálogo de confirmación */}
       <ConfirmDialog
         isOpen={confirmDialog.isOpen}
-        onClose={() => setConfirmDialog({ isOpen: false, product: null })}
-        onConfirm={confirmDelete}
-        title="¿Eliminar producto?"
-        message={`Estás a punto de eliminar "${confirmDialog.product?.name}". Esta acción no se puede deshacer.`}
-        confirmText="Sí, eliminar"
+        onClose={() => setConfirmDialog({ isOpen: false, type: null, product: null })}
+        onConfirm={handleConfirm}
+        title={
+          confirmDialog.type === 'delete' ? '¿Eliminar producto?' :
+          confirmDialog.type === 'create' ? '¿Crear nuevo producto?' :
+          '¿Actualizar producto?'
+        }
+        message={
+          confirmDialog.type === 'delete' 
+            ? `Estás a punto de eliminar "${confirmDialog.product?.name}". Esta acción no se puede deshacer.`
+            : confirmDialog.type === 'create'
+            ? `Estás a punto de crear el producto "${confirmDialog.product?.name}". ¿Deseas continuar?`
+            : `Estás a punto de actualizar "${confirmDialog.product?.name}". ¿Deseas guardar los cambios?`
+        }
+        confirmText={
+          confirmDialog.type === 'delete' ? 'Sí, eliminar' :
+          confirmDialog.type === 'create' ? 'Sí, crear' :
+          'Sí, actualizar'
+        }
         cancelText="Cancelar"
-        confirmColor="red"
-        icon="🗑️"
+        confirmColor={
+          confirmDialog.type === 'delete' ? 'red' :
+          confirmDialog.type === 'create' ? 'green' :
+          'blue'
+        }
+        icon={
+          confirmDialog.type === 'delete' ? '🗑️' :
+          confirmDialog.type === 'create' ? '✨' :
+          '✏️'
+        }
       />
     </div>
   );
